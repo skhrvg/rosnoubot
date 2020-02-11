@@ -1,1 +1,5 @@
 .vscode/
+./temp/*
+__debug_bin
+rosnoubot
+start.sh
