@@ -6,13 +6,15 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
 var (
-	port            = os.Getenv("ROSNOUBOT_TGPORT")
-	publicURL       = os.Getenv("ROSNOUBOT_TGURL")
-	token           = os.Getenv("ROSNOUBOT_TGTOKEN")
+	tgPort          = os.Getenv("ROSNOUBOT_TGPORT")
+	tgURL           = os.Getenv("ROSNOUBOT_TGURL")
+	tgToken         = os.Getenv("ROSNOUBOT_TGTOKEN")
+	tgAdminID, _    = strconv.Atoi(os.Getenv("ROSNOUBOT_TGADMINID"))
 	mysqlConnection = os.Getenv("ROSNOUBOT_MYSQL")
 )
 

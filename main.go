@@ -12,17 +12,18 @@ import (
 
 func main() {
 	log.Println("[BOT]", "Подготовка к запуску...")
-	log.Println("[CONFIG]", "Локальный порт:", port)
-	log.Println("[CONFIG]", "Webhook URL:", publicURL)
-	log.Println("[CONFIG]", "Telegram token:", token)
+	log.Println("[CONFIG]", "Локальный порт:", tgPort)
+	log.Println("[CONFIG]", "Webhook URL:", tgURL)
+	log.Println("[CONFIG]", "Telegram token:", tgToken)
+	log.Println("[CONFIG]", "Telegram admin userid:", tgAdminID)
 	log.Println("[CONFIG]", "БД MySQL:", mysqlConnection)
 
 	// Создание вебхука
 	b, err := tb.NewBot(tb.Settings{
-		Token: token,
+		Token: tgToken,
 		Poller: &tb.Webhook{
-			Listen:   ":" + port,
-			Endpoint: &tb.WebhookEndpoint{PublicURL: publicURL},
+			Listen:   ":" + tgPort,
+			Endpoint: &tb.WebhookEndpoint{PublicURL: tgURL},
 		},
 	})
 	if err != nil {
@@ -88,7 +89,7 @@ func main() {
 	// Только для администратора
 	var parseArgs []string
 	b.Handle("/parse", func(m *tb.Message) {
-		if m.Sender.ID == 259814572 {
+		if m.Sender.ID == tgAdminID {
 			parseArgs = strings.Split(m.Text, " ")[1:]
 			b.Send(m.Sender, fmt.Sprintf("*Режим загрузки расписания:*\n%s (%s, %s, %s)", parseArgs[0], parseArgs[1], "Очная", "Бакалавриат"),
 				tb.ParseMode("Markdown"))
@@ -219,8 +220,8 @@ func main() {
 		// Экран отправки отчета
 		case "report":
 			userSetScreen(m.Sender.ID, "main")
-			b.Send(&tb.User{ID: 259814572}, fmt.Sprintf("⚠️  *REPORT*\nИмя: `%s`\nФамилия: `%s`\nUsername: @%s\nID: `%d`\n\nГруппа: `%s (%s | %s |%s)`", m.Sender.FirstName, m.Sender.LastName, m.Sender.Username, m.Sender.ID, userGet(m.Sender.ID, "gr0up"), userGet(m.Sender.ID, "institute"), userGet(m.Sender.ID, "form"), userGet(m.Sender.ID, "los")), tb.ParseMode("Markdown"))
-			b.Forward(&tb.User{ID: 259814572}, m, tb.ParseMode("Markdown"))
+			b.Send(&tb.User{ID: tgAdminID}, fmt.Sprintf("⚠️  *REPORT*\nИмя: `%s`\nФамилия: `%s`\nUsername: @%s\nID: `%d`\n\nГруппа: `%s (%s | %s |%s)`", m.Sender.FirstName, m.Sender.LastName, m.Sender.Username, m.Sender.ID, userGet(m.Sender.ID, "gr0up"), userGet(m.Sender.ID, "institute"), userGet(m.Sender.ID, "form"), userGet(m.Sender.ID, "los")), tb.ParseMode("Markdown"))
+			b.Forward(&tb.User{ID: tgAdminID}, m, tb.ParseMode("Markdown"))
 			b.Send(m.Sender, "✅  *Отчет отправлен.*", &tb.ReplyMarkup{ReplyKeyboard: keyboardMain, ResizeReplyKeyboard: true}, tb.ParseMode("Markdown"))
 
 		// Экраны "Not Implemented"
