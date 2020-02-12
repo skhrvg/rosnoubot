@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -50,6 +51,10 @@ func main() {
 	keyboardParse := [][]tb.InlineButton{
 		[]tb.InlineButton{runSQLBtn},
 	}
+	broadcastConfirmBtn := tb.InlineButton{Text: "Отправить", Unique: "broadcastConfirmBtn"}
+	keyboardBroadcast := [][]tb.InlineButton{
+		[]tb.InlineButton{broadcastConfirmBtn},
+	}
 	keyboardMain := [][]tb.ReplyButton{
 		[]tb.ReplyButton{tb.ReplyButton{Text: "📅  Сегодня"}, tb.ReplyButton{Text: "📅  Завтра"}},
 		[]tb.ReplyButton{tb.ReplyButton{Text: "📅  Эта неделя"}, tb.ReplyButton{Text: "📅  След. неделя"}},
@@ -89,6 +94,7 @@ func main() {
 	// Только для администратора
 	var parseArgs []string
 	b.Handle("/parse", func(m *tb.Message) {
+		log.Println("[CHAT]", m.Sender.ID, m.Sender.FirstName, m.Sender.LastName, "@"+m.Sender.Username, ">>>", m.Text)
 		if m.Sender.ID == tgAdminID {
 			parseArgs = strings.Split(m.Text, " ")[1:]
 			b.Send(m.Sender, fmt.Sprintf("*Режим загрузки расписания:*\n%s (%s, %s, %s)", parseArgs[0], parseArgs[1], "Очная", "Бакалавриат"),
@@ -118,7 +124,55 @@ func main() {
 				log.Println("[WARN]", err)
 			}
 			removeFile("temp/" + parseArgs[0] + ".xlsx")
+			parseArgs = nil
 		}
+	})
+
+	// Отправка сообщения пользователю по id
+	// Только для администратора
+	b.Handle("/send", func(m *tb.Message) {
+		log.Println("[CHAT]", m.Sender.ID, m.Sender.FirstName, m.Sender.LastName, "@"+m.Sender.Username, ">>>", m.Text)
+		if m.Sender.ID == tgAdminID {
+			args := strings.SplitN(m.Text, " ", 3)[1:]
+			intID, _ := strconv.Atoi(args[0])
+			b.Send(&tb.User{ID: intID}, fmt.Sprintf("💬  *Сообщение от администратора:*\n\n%s", args[1]), tb.ParseMode("Markdown"))
+			b.Send(&tb.User{ID: tgAdminID}, fmt.Sprintf("*Сообщение отправлено пользователю %s:*\n\n%s", args[0], args[1]), tb.ParseMode("Markdown"))
+		}
+	})
+
+	// Рассылка группе пользователей
+	// Только для администратора
+	var broadcastUserList []string
+	var broadcastMessage string
+	var broadcastTarget string
+	b.Handle("/broadcast", func(m *tb.Message) {
+		log.Println("[CHAT]", m.Sender.ID, m.Sender.FirstName, m.Sender.LastName, "@"+m.Sender.Username, ">>>", m.Text)
+		if m.Sender.ID == tgAdminID {
+			args := strings.SplitN(m.Text, " ", 4)[1:]
+			broadcastUserList = getUserIDs(args[0], args[1])
+			broadcastMessage = args[2]
+			broadcastTarget = args[1]
+			b.Send(&tb.User{ID: tgAdminID}, fmt.Sprintf("*Подтердите рассылку %d пользователям (*`WHERE %s = %s`*):*\n\n%s", len(broadcastUserList), args[0], args[1], broadcastMessage),
+				&tb.ReplyMarkup{InlineKeyboard: keyboardBroadcast}, tb.ParseMode("Markdown"))
+		}
+	})
+	b.Handle(&broadcastConfirmBtn, func(c *tb.Callback) {
+		counter := 0
+		for _, uID := range broadcastUserList {
+			intID, _ := strconv.Atoi(uID)
+			_, err := b.Send(&tb.User{ID: intID}, fmt.Sprintf("💬  *Рассылка для %s:*\n\n%s", broadcastTarget, broadcastMessage), tb.ParseMode("Markdown"))
+			log.Println("[CHAT]", "Рассылка пользователю", uID)
+			if err != nil {
+				log.Println("[WARN]", err)
+			} else {
+				counter++
+			}
+		}
+		b.Respond(c, &tb.CallbackResponse{Text: fmt.Sprintf("Сообщение отправлено %d пользователям.", counter), ShowAlert: true})
+		b.Send(&tb.User{ID: tgAdminID}, "Рассылка завершена", &tb.ReplyMarkup{ReplyKeyboard: keyboardMain, ResizeReplyKeyboard: true}, tb.ParseMode("Markdown"))
+		broadcastUserList = nil
+		broadcastMessage = ""
+		broadcastTarget = ""
 	})
 
 	// Получение из БД, сборка и отправка расписания
@@ -220,7 +274,7 @@ func main() {
 		// Экран отправки отчета
 		case "report":
 			userSetScreen(m.Sender.ID, "main")
-			b.Send(&tb.User{ID: tgAdminID}, fmt.Sprintf("⚠️  *REPORT*\nИмя: `%s`\nФамилия: `%s`\nUsername: @%s\nID: `%d`\n\nГруппа: `%s (%s | %s |%s)`", m.Sender.FirstName, m.Sender.LastName, m.Sender.Username, m.Sender.ID, userGet(m.Sender.ID, "gr0up"), userGet(m.Sender.ID, "institute"), userGet(m.Sender.ID, "form"), userGet(m.Sender.ID, "los")), tb.ParseMode("Markdown"))
+			b.Send(&tb.User{ID: tgAdminID}, fmt.Sprintf("⚠️  *REPORT*\nИмя: `%s`\nФамилия: `%s`\nUsername: @%s\nID: `%d`\n\nГруппа: `%s (%s | %s | %s)`", m.Sender.FirstName, m.Sender.LastName, m.Sender.Username, m.Sender.ID, userGet(m.Sender.ID, "gr0up"), userGet(m.Sender.ID, "institute"), userGet(m.Sender.ID, "form"), userGet(m.Sender.ID, "los")), tb.ParseMode("Markdown"))
 			b.Forward(&tb.User{ID: tgAdminID}, m, tb.ParseMode("Markdown"))
 			b.Send(m.Sender, "✅  *Отчет отправлен.*", &tb.ReplyMarkup{ReplyKeyboard: keyboardMain, ResizeReplyKeyboard: true}, tb.ParseMode("Markdown"))
 

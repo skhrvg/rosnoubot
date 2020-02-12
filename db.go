@@ -141,3 +141,18 @@ func getDay(group string, date string) []work {
 	}
 	return day
 }
+
+// Получить список id пользователей по заданному параметру
+func getUserIDs(p string, v string) []string {
+	var userIDs []string
+	db, err := sql.Open("mysql", mysqlConnection)
+	checkerr(err)
+	defer db.Close()
+	q, err := db.Query(fmt.Sprintf("SELECT `id` FROM `teleusers` WHERE `%s` = '%s';", p, v))
+	for q.Next() {
+		var uID string
+		q.Scan(&uID)
+		userIDs = append(userIDs, uID)
+	}
+	return userIDs
+}

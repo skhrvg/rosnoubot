@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -28,52 +27,31 @@ func sliceContains(a []string, x string) bool {
 	return false
 }
 
-func downloadFile(filepath string, url string) error {
-
-	// Get the data
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	// Create the file
-	out, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
-	return err
-}
-
+// Запись в файл из потока
 func writeFile(filepath string, f io.ReadCloser) error {
-
-	// Create the file
 	out, err := os.Create(filepath)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
-
-	// Write the body to file
 	_, err = io.Copy(out, f)
 	return err
 }
 
+// Удаление файла
 func removeFile(filepath string) error {
 	err := os.Remove(filepath)
 	return err
 }
 
+// Проверка на ошибки
 func checkerr(err error) {
 	if err != nil {
 		log.Fatal("[FATAL]", err)
 	}
 }
 
+// Возвращает день недели по номеру (time pkg)
 func weekdayString(date string) string {
 	weekday, _ := time.Parse("02.01.2006", date)
 	switch weekday.Weekday() {
@@ -95,6 +73,7 @@ func weekdayString(date string) string {
 	return "impossible error"
 }
 
+// Создает сообщение с расписанием на день из слайса work-ов
 func dayToMsg(day []work, group string, date string) string {
 	var msg string
 
