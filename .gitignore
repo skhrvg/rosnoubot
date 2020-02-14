@@ -1,5 +1,8 @@
 .vscode/
-./temp/*
+temp/*
 __debug_bin
 rosnoubot
 start.sh
+*.xls
+*.xlsx
+*.sql

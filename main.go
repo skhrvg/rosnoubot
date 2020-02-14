@@ -71,6 +71,8 @@ func main() {
 	cmdResetUserSettings := func(m *tb.Message) {
 		log.Println("[CHAT]", m.Sender.ID, m.Sender.FirstName, m.Sender.LastName, "@"+m.Sender.Username, ">>>", m.Text)
 		userSetScreen(m.Sender.ID, "setup1")
+		b.Send(m.Sender, "🤖  *Привет!*\n\nС помощью этого бота ты сможешь узнать расписание для своей группы РосНОУ. Для начала тебе нужно ответить на 4 простых вопроса.\n\n_Этот бот не является \"официальным\" и никаким образом не связан с администрацией РосНОУ. Информация, предоставляемая ботом, может быть недостоверной или неактуальной. По любым вопросам ты можешь обращаться к админу в ЛС (@skhrvg) или в главном меню бота с помощью специальной кнопки._",
+			tb.ParseMode("Markdown"))
 		b.Send(m.Sender, "🛠️  *Настройка бота [1/4]*\n\nВыбери свой институт.",
 			&tb.ReplyMarkup{ReplyKeyboard: keyboardSetup1}, tb.ParseMode("Markdown"))
 		b.Send(m.Sender, "ℹ️  *Подсказка:*\n\n_Если у тебя не отображаются кнопки бота, нажми на иконку с 4 квадратами справа от поля ввода._",
@@ -90,6 +92,41 @@ func main() {
 		}
 	})
 
+	// WIP: Парсинг всех файлов в директории
+	b.Handle("/parseall", func(m *tb.Message) {
+		log.Println("[CHAT]", m.Sender.ID, m.Sender.FirstName, m.Sender.LastName, "@"+m.Sender.Username, ">>>", m.Text)
+		if m.Sender.ID == tgAdminID {
+			institute := strings.Split(m.Text, " ")[1]
+			folder, _ := os.Open("parser/")
+			names, _ := folder.Readdir(-1)
+			folder.Close()
+			for _, file := range names {
+				filename := "parser/" + file.Name()
+				group := strings.Split(file.Name(), ".")[0]
+				log.Printf(group)
+				logs, rawSQL, _ := parse(filename, group, institute, "Очная", "Бакалавриат",
+					3, time.Date(2020, 2, 3, 0, 0, 0, 0, time.Now().UTC().Location()))
+				log.Printf(logs)
+				f, _ := os.Create("temp/" + group + ".sql")
+				f.WriteString(rawSQL)
+				f.Close()
+			}
+		}
+	})
+	b.Handle("/confirmall", func(m *tb.Message) {
+		log.Println("[CHAT]", m.Sender.ID, m.Sender.FirstName, m.Sender.LastName, "@"+m.Sender.Username, ">>>", m.Text)
+		if m.Sender.ID == tgAdminID {
+			folder, _ := os.Open("temp/")
+			names, _ := folder.Readdir(-1)
+			folder.Close()
+			for _, file := range names {
+				group := strings.Split(file.Name(), ".")[0]
+				log.Println("[DB]", "Uploading", group)
+				fileExec("temp/" + group + ".sql")
+			}
+		}
+	})
+
 	// Парсинг отправленного файла и внесение изменений в БД
 	// Только для администратора
 	var parseArgs []string
@@ -97,6 +134,7 @@ func main() {
 		log.Println("[CHAT]", m.Sender.ID, m.Sender.FirstName, m.Sender.LastName, "@"+m.Sender.Username, ">>>", m.Text)
 		if m.Sender.ID == tgAdminID {
 			parseArgs = strings.Split(m.Text, " ")[1:]
+			userSetScreen(m.Sender.ID, "parse")
 			b.Send(m.Sender, fmt.Sprintf("*Режим загрузки расписания:*\n%s (%s, %s, %s)", parseArgs[0], parseArgs[1], "Очная", "Бакалавриат"),
 				tb.ParseMode("Markdown"))
 		}

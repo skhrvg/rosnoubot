@@ -22,7 +22,7 @@ type entry struct {
 func writeSQL(entries []entry, group string, institute string, form string, level string) string {
 	var rawSQL string
 	rawSQL = "DELETE FROM `schedule` WHERE `gr0up` = '" + group + "';\n"
-	rawSQL += fmt.Sprintf("INSERT IGNORE INTO `groups` (`gr0up`, `institute`, `form`, `los`) VALUES ('%s', '%s', '%s', '%s');\n", group, institute, form, level)
+	rawSQL += fmt.Sprintf("INSERT IGNORE INTO `groups` (`gr0up`, `institute`, `form`, `los`, `last_modified`) VALUES ('%s', '%s', '%s', '%s', CURRENT_TIMESTAMP);\n", group, institute, form, level)
 	for _, e := range entries {
 		var dayoff int
 		if e.dayoff {
@@ -114,6 +114,14 @@ func parse(filename string, group string, institute string, form string, level s
 			lastRow = weekdayStart[weekday] + 4
 			for tc := weekdayStart[weekday]; tc < xlFile.Sheets[0].MaxRow; tc++ {
 				if xlFile.Sheets[0].Rows[tc].Cells[0].Value != "" {
+					if xlFile.Sheets[0].Rows[tc].Cells[0].Value == "Зам.начальника учебного отдела УМУ" {
+						lastRow = tc - 2
+						break
+					}
+					if xlFile.Sheets[0].Rows[tc].Cells[0].Value == "Исполнительный директор института" {
+						lastRow = tc - 3
+						break
+					}
 					lastRow = tc + 3
 				}
 			}
@@ -123,7 +131,7 @@ func parse(filename string, group string, institute string, form string, level s
 			if xlFile.Sheets[0].Rows[i].Cells[1].Value != "" {
 				logs += fmt.Sprintln("[INFO]", "Найден предмет:", xlFile.Sheets[0].Rows[i].Cells[1].Value)
 			} else {
-				logs += fmt.Sprintln("[WARN]", "Пустой предмет. День недели:", weekday, "| Строка:", i)
+				logs += fmt.Sprintln("`*[WARN]*`", "Пустой предмет. День недели:", weekday, "| Строка:", i)
 			}
 			currentDate = startDate.AddDate(0, 0, weekday)
 			for j := startCol; j <= lastCol; j++ { // Дни
@@ -164,7 +172,7 @@ func parse(filename string, group string, institute string, form string, level s
 						newEntry.workType = "ЭКЗАМЕН"
 					default:
 						newEntry.workType = xlFile.Sheets[0].Rows[i].Cells[j].Value
-						logs += fmt.Sprintln("[WARN]", "Неизвестный тип занятия:", newEntry.workType, "| Строка:", i, "Столбец:", j)
+						logs += fmt.Sprintln("`*[WARN]*`", "Неизвестный тип занятия:", newEntry.workType, "| Строка:", i, "Столбец:", j)
 					}
 					newEntry.subject = xlFile.Sheets[0].Rows[i].Cells[1].Value
 					newEntry.professor = xlFile.Sheets[0].Rows[i+1].Cells[1].Value
@@ -176,7 +184,7 @@ func parse(filename string, group string, institute string, form string, level s
 					entries = append(entries, newEntry)
 				} else if row == weekdayStart[weekday] {
 					isDayoff := true
-					for r := row; r < lastRow+1; r++ {
+					for r := row; r < lastRow; r++ {
 						if xlFile.Sheets[0].Rows[r].Cells[j].Value != "" {
 							isDayoff = false
 							break
@@ -195,7 +203,6 @@ func parse(filename string, group string, institute string, form string, level s
 			}
 		}
 	}
-	//fmt.Println(entries)
 	logs += fmt.Sprintln("[INFO]", "Успешный парсинг!")
 	logs += fmt.Sprintln("[INFO]", "Генерация SQL запроса...")
 	rawSQL = writeSQL(entries, group, institute, form, level)
