@@ -296,7 +296,7 @@ func main() {
 			if sliceContains(groupsList(userGet(m.Sender.ID, "institute"), userGet(m.Sender.ID, "form"), userGet(m.Sender.ID, "los")), m.Text) {
 				userSetScreen(m.Sender.ID, "main")
 				userSet(m.Sender.ID, "gr0up", m.Text)
-				b.Send(m.Sender, "✅  *Настройка бота завершена!*\n\nКстати, чтобы узнать расписание на определённый день, ты можешь отправить дату в формате ГГГГ-ММ-ДД.", &tb.ReplyMarkup{ReplyKeyboard: keyboardMain, ResizeReplyKeyboard: true}, tb.ParseMode("Markdown"))
+				b.Send(m.Sender, "✅  *Настройка бота завершена!*\n\nКстати, чтобы узнать расписание на определённый день, ты можешь отправить дату в формате ДД.ММ.ГГГГ.", &tb.ReplyMarkup{ReplyKeyboard: keyboardMain, ResizeReplyKeyboard: true}, tb.ParseMode("Markdown"))
 			} else {
 				b.Send(m.Sender, "⚠️  *К сожалению, бот не нашел расписание для твоей группы "+m.Text+".*\n\nПроверь номер группы и отправь его снова или используй команду /reset чтобы выбрать другой институт или форму обучения.", &tb.ReplyMarkup{ReplyKeyboardRemove: true}, tb.ParseMode("Markdown"))
 			}
@@ -307,6 +307,16 @@ func main() {
 				userSetScreen(m.Sender.ID, "report")
 				b.Send(m.Sender, "*Спасибо, что помогаешь сделать бота лучше!*\n\nПодробно опиши свою проблему. Администратор увидит твое сообщение и отправит ответ через бота или в личку.\n\n_Отменить отправку отчета можно командой _/cancel_._",
 					&tb.ReplyMarkup{ReplyKeyboardRemove: true}, tb.ParseMode("Markdown"))
+			} else {
+				t, err := time.Parse("02.01.2006", m.Text)
+				if err == nil {
+					b.Send(m.Sender,
+						dayToMsg(getDay(userGet(m.Sender.ID, "gr0up"), t.Format("2006-01-02")), userGet(m.Sender.ID, "gr0up"), t.Format("2006-01-02")),
+						&tb.ReplyMarkup{ReplyKeyboard: keyboardMain, ResizeReplyKeyboard: true}, tb.ParseMode("Markdown"),
+					)
+				} else {
+					log.Println("[WARN]", err)
+				}
 			}
 
 		// Экран отправки отчета
